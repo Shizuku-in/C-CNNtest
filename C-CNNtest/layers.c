@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "layers.h"
+#include "layer_base.h"
 
 float get_val(Matrix* m, int ch, int r, int c, int w, int h) {
     if (r < 0 || r >= h || c < 0 || c >= w) return 0.0f;
@@ -154,4 +156,70 @@ Matrix* pool_backward(PoolLayer* l, Matrix* d_out) {
     }
 
     return d_input;
+}
+
+// ===== Layer Interface Implementation for ConvLayer =====
+
+static Matrix* conv_layer_forward_impl(Layer* self, Matrix* input) {
+    ConvLayer* conv = (ConvLayer*)self->impl;
+    return conv_forward(conv, input);
+}
+
+static Matrix* conv_layer_backward_impl(Layer* self, Matrix* grad_output, float learning_rate) {
+    ConvLayer* conv = (ConvLayer*)self->impl;
+    return conv_backward(conv, grad_output, self->cached_input, learning_rate);
+}
+
+static void conv_layer_free_impl(Layer* self) {
+    ConvLayer* conv = (ConvLayer*)self->impl;
+    conv_free(conv);
+}
+
+static const char* conv_layer_get_name_impl(Layer* self) {
+    return "ConvLayer";
+}
+
+static LayerVTable conv_vtable = {
+    .forward = conv_layer_forward_impl,
+    .backward = conv_layer_backward_impl,
+    .free = conv_layer_free_impl,
+    .get_name = conv_layer_get_name_impl
+};
+
+Layer* conv_layer_create(int in_w, int in_h, int in_depth, int k_size, int num_k) {
+    ConvLayer* conv = conv_create(in_w, in_h, in_depth, k_size, num_k);
+    return layer_create(conv, &conv_vtable);
+}
+
+// ===== Layer Interface Implementation for PoolLayer =====
+
+static Matrix* pool_layer_forward_impl(Layer* self, Matrix* input) {
+    PoolLayer* pool = (PoolLayer*)self->impl;
+    return pool_forward(pool, input);
+}
+
+static Matrix* pool_layer_backward_impl(Layer* self, Matrix* grad_output, float learning_rate) {
+    PoolLayer* pool = (PoolLayer*)self->impl;
+    return pool_backward(pool, grad_output);
+}
+
+static void pool_layer_free_impl(Layer* self) {
+    PoolLayer* pool = (PoolLayer*)self->impl;
+    pool_free(pool);
+}
+
+static const char* pool_layer_get_name_impl(Layer* self) {
+    return "PoolLayer";
+}
+
+static LayerVTable pool_vtable = {
+    .forward = pool_layer_forward_impl,
+    .backward = pool_layer_backward_impl,
+    .free = pool_layer_free_impl,
+    .get_name = pool_layer_get_name_impl
+};
+
+Layer* pool_layer_create(int in_w, int in_h, int in_depth, int pool_size) {
+    PoolLayer* pool = pool_create(in_w, in_h, in_depth, pool_size);
+    return layer_create(pool, &pool_vtable);
 }

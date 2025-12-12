@@ -2,7 +2,9 @@
 #define LAYERS_H
 
 #include "matrix.h"
+#include "layer_base.h"
 
+// ConvLayer implementation
 typedef struct {
     int input_w, input_h;
     int input_depth;
@@ -16,6 +18,7 @@ typedef struct {
     Matrix* biases;
 } ConvLayer;
 
+// PoolLayer implementation
 typedef struct {
     int input_w, input_h, input_depth;
     int pool_size;
@@ -24,14 +27,15 @@ typedef struct {
     int* mask;
 } PoolLayer;
 
-
+// ConvLayer functions
+Layer* conv_layer_create(int in_w, int in_h, int in_depth, int k_size, int num_k);
 ConvLayer* conv_create(int in_w, int in_h, int in_depth, int k_size, int num_k);
 void conv_free(ConvLayer* l);
-
 Matrix* conv_forward(ConvLayer* l, Matrix* input);
-
 Matrix* conv_backward(ConvLayer* l, Matrix* d_out, Matrix* input, float lr);
 
+// PoolLayer functions
+Layer* pool_layer_create(int in_w, int in_h, int in_depth, int pool_size);
 PoolLayer* pool_create(int in_w, int in_h, int in_depth, int pool_size);
 void pool_free(PoolLayer* l);
 Matrix* pool_forward(PoolLayer* l, Matrix* input);

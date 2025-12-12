@@ -128,21 +128,27 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="activations.c" />
+    <ClCompile Include="fc_layer.c" />
     <ClCompile Include="image_util.c" />
+    <ClCompile Include="layer_base.c" />
     <ClCompile Include="layers.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="matrix.c" />
     <ClCompile Include="mnist.c" />
+    <ClCompile Include="model.c" />
     <ClCompile Include="network.c" />
     <ClCompile Include="io.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="activations.h" />
+    <ClInclude Include="fc_layer.h" />
     <ClInclude Include="image_util.h" />
     <ClInclude Include="io.h" />
+    <ClInclude Include="layer_base.h" />
     <ClInclude Include="layers.h" />
     <ClInclude Include="matrix.h" />
     <ClInclude Include="mnist.h" />
+    <ClInclude Include="model.h" />
     <ClInclude Include="network.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>

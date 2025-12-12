@@ -7,8 +7,9 @@
 #include "mnist.h"
 #include "matrix.h"
 #include "layers.h"
+#include "fc_layer.h"
 #include "activations.h"
-#include "network.h"
+#include "model.h"
 #include "io.h" 
 #include "image_util.h"
 
@@ -22,8 +23,7 @@
 #define IMAGEPATH "data/train-images.idx3-ubyte"
 #define LABELPATH "data/train-labels.idx1-ubyte"
 
-void build_architecture(ConvLayer** conv, PoolLayer** pool, NeuralNetwork** fc);
-int argmax(Matrix* m);
+Model* build_model(float learning_rate);
 void run_training_mode(int epochs);
 void run_inference_mode(char* model_path, char* img_path);
 
@@ -62,21 +62,34 @@ int main() {
     return 0;
 }
 
-void build_architecture(ConvLayer** conv, PoolLayer** pool, NeuralNetwork** fc) {
-    *conv = conv_create(28, 28, 1, CONV_K_SIZE, CONV_K_NUM);
-    // Conv out: 26x26x8
-    *pool = pool_create(26, 26, 8, POOL_SIZE);
-    // Pool out: 13x13x8 = 1352
-    *fc = network_create(13 * 13 * 8, FC_HIDDEN, FC_OUT);
-}
-
-int argmax(Matrix* m) {
-    int max_idx = 0;
-    float max_val = m->data[0];
-    for (int i = 1; i < m->rows * m->cols; i++) {
-        if (m->data[i] > max_val) { max_val = m->data[i]; max_idx = i; }
-    }
-    return max_idx;
+Model* build_model(float learning_rate) {
+    Model* model = model_create(learning_rate);
+    
+    // Conv Layer: 28x28x1 -> 26x26x8
+    model_add_layer(model, conv_layer_create(28, 28, 1, CONV_K_SIZE, CONV_K_NUM));
+    
+    // ReLU Activation
+    model_add_layer(model, relu_layer_create(26 * 26 * 8));
+    
+    // Max Pooling: 26x26x8 -> 13x13x8
+    model_add_layer(model, pool_layer_create(26, 26, 8, POOL_SIZE));
+    
+    // Flatten: 13x13x8 = 1352
+    model_add_layer(model, flatten_layer_create(8, 13, 13));
+    
+    // Fully Connected Hidden: 1352 -> 128
+    model_add_layer(model, fc_layer_create(1352, FC_HIDDEN));
+    
+    // ReLU Activation
+    model_add_layer(model, relu_layer_create(FC_HIDDEN));
+    
+    // Fully Connected Output: 128 -> 10
+    model_add_layer(model, fc_layer_create(FC_HIDDEN, FC_OUT));
+    
+    // Softmax Activation
+    model_add_layer(model, softmax_layer_create(FC_OUT));
+    
+    return model;
 }
 
 void run_training_mode(int epochs) {
@@ -86,130 +99,92 @@ void run_training_mode(int epochs) {
     float** images = read_mnist_images(IMAGEPATH, &num_imgs);
     int* labels = read_mnist_labels(LABELPATH, &num_lbls);
 
-    ConvLayer* conv; PoolLayer* pool; NeuralNetwork* fc;
-    build_architecture(&conv, &pool, &fc);
-
-    float lr = 0.01f;
+    Model* model = build_model(0.01f);
+    model_summary(model);
 
     for (int e = 0; e < epochs; e++) {
         int correct = 0;
+        
         for (int i = 0; i < num_imgs; i++) {
+            // Prepare input
             Matrix* input = matrix_create(1, 784);
             memcpy(input->data, images[i], 784 * sizeof(float));
 
+            // Prepare target (one-hot encoding)
             Matrix* target = matrix_create(10, 1);
             matrix_fill(target, 0.0f);
             target->data[labels[i]] = 1.0f;
 
-            Matrix* conv_out = conv_forward(conv, input);
-            apply_relu(conv_out);
-            Matrix* pool_out = pool_forward(pool, conv_out);
+            // Forward pass
+            Matrix* output = model_predict(model, input);
+            
+            // Check accuracy
+            if (model_argmax(output) == labels[i]) correct++;
 
-            Matrix* flattened = matrix_create(pool_out->rows * pool_out->cols, 1);
+            // Compute loss gradient (output - target)
+            Matrix* grad_output = matrix_create(10, 1);
+            for (int k = 0; k < 10; k++) {
+                grad_output->data[k] = output->data[k] - target->data[k];
+            }
 
-            memcpy(flattened->data, pool_out->data, flattened->rows * sizeof(float));
+            // Backward pass
+            model_backward(model, grad_output);
 
-            Matrix* z1 = matrix_multiply(fc->w1, flattened);
-            matrix_add(z1, fc->b1);
-            Matrix* a1 = matrix_copy(z1); apply_relu(a1);
+            // Free memory
+            matrix_free(input);
+            matrix_free(target);
+            matrix_free(output);
+            matrix_free(grad_output);
 
-            Matrix* z2 = matrix_multiply(fc->w2, a1);
-            matrix_add(z2, fc->b2);
-            Matrix* output = matrix_copy(z2); apply_softmax(output);
-
-            if (argmax(output) == labels[i]) correct++;
-
-            Matrix* output_err = matrix_create(10, 1);
-            for (int k = 0; k < 10; k++) output_err->data[k] = output->data[k] - target->data[k];
-
-            Matrix* a1_T = matrix_transpose(a1);
-            Matrix* dw2 = matrix_multiply(output_err, a1_T);
-            matrix_free(a1_T);
-
-            Matrix* w2_T = matrix_transpose(fc->w2);
-            Matrix* hidden_err = matrix_multiply(w2_T, output_err);
-            matrix_free(w2_T);
-
-            apply_relu_derivative(z1);
-            for (int k = 0; k < hidden_err->rows; k++) hidden_err->data[k] *= z1->data[k];
-
-            Matrix* flattened_T = matrix_transpose(flattened);
-            Matrix* dw1 = matrix_multiply(hidden_err, flattened_T);
-            matrix_free(flattened_T);
-
-            Matrix* w1_T = matrix_transpose(fc->w1);
-            Matrix* d_flattened = matrix_multiply(w1_T, hidden_err);
-            matrix_free(w1_T);
-
-            Matrix* d_pool_out = matrix_create(pool->input_depth, pool->output_w * pool->output_h);
-            memcpy(d_pool_out->data, d_flattened->data, d_pool_out->rows * d_pool_out->cols * sizeof(float));
-
-            Matrix* d_conv_out = pool_backward(pool, d_pool_out);
-            apply_relu_derivative(conv_out);
-            for (int k = 0; k < d_conv_out->rows * d_conv_out->cols; k++) d_conv_out->data[k] *= conv_out->data[k];
-
-            Matrix* d_input = conv_backward(conv, d_conv_out, input, lr);
-
-            for (int k = 0; k < fc->w2->rows * fc->w2->cols; k++) fc->w2->data[k] -= lr * dw2->data[k];
-            for (int k = 0; k < fc->b2->rows; k++) fc->b2->data[k] -= lr * output_err->data[k];
-            for (int k = 0; k < fc->w1->rows * fc->w1->cols; k++) fc->w1->data[k] -= lr * dw1->data[k];
-            for (int k = 0; k < fc->b1->rows; k++) fc->b1->data[k] -= lr * hidden_err->data[k];
-
-            matrix_free(input); matrix_free(target); matrix_free(conv_out); matrix_free(pool_out);
-            matrix_free(flattened); matrix_free(z1); matrix_free(a1); matrix_free(z2); matrix_free(output);
-            matrix_free(output_err); matrix_free(dw2); matrix_free(hidden_err); matrix_free(dw1);
-            matrix_free(d_flattened); matrix_free(d_pool_out); matrix_free(d_conv_out); matrix_free(d_input);
-
-            if (i % 100 == 0) printf("Epoch %d: %d/%d (Acc: %.2f%%)\r", e + 1, i, num_imgs, (float)correct / (i + 1) * 100);
+            if (i % 100 == 0) {
+                printf("Epoch %d: %d/%d (Acc: %.2f%%)\r", 
+                       e + 1, i, num_imgs, (float)correct / (i + 1) * 100);
+            }
         }
-        printf("\nEpoch %d is over.\n", e + 1);
+        
+        printf("\nEpoch %d finished. Accuracy: %.2f%%\n", 
+               e + 1, (float)correct / num_imgs * 100);
     }
 
-    save_model("cnn_model.bin", conv, fc);
+    printf("\nTraining complete! Saving model...\n");
+    // TODO: Implement save_model for new architecture
+    // save_model("cnn_model.bin", model);
 
-    conv_free(conv); pool_free(pool); network_free(fc);
-    free_mnist_images(images, num_imgs); free(labels);
+    model_free(model);
+    free_mnist_images(images, num_imgs);
+    free(labels);
 }
 
 void run_inference_mode(char* model_path, char* img_path) {
-    printf("--- Infering ---\n");
+    printf("--- Inference Mode ---\n");
     printf("Load model: %s\n", model_path);
-    printf("Load sample: % s\n", img_path);
+    printf("Load image: %s\n", img_path);
 
-    ConvLayer* conv; PoolLayer* pool; NeuralNetwork* fc;
-    build_architecture(&conv, &pool, &fc);
-
-    load_model(model_path, conv, fc);
+    Model* model = build_model(0.01f);
+    
+    // TODO: Implement load_model for new architecture
+    // load_model(model_path, model);
+    printf("Warning: Model loading not yet implemented for new architecture\n");
 
     float* img_data = load_image_from_file(img_path);
-    if (!img_data) return;
+    if (!img_data) {
+        model_free(model);
+        return;
+    }
 
     Matrix* input = matrix_create(1, 784);
     memcpy(input->data, img_data, 784 * sizeof(float));
 
-    Matrix* conv_out = conv_forward(conv, input);
-    apply_relu(conv_out);
+    Matrix* output = model_predict(model, input);
 
-    Matrix* pool_out = pool_forward(pool, conv_out);
-
-    Matrix* flattened = matrix_create(pool_out->rows * pool_out->cols, 1);
-    memcpy(flattened->data, pool_out->data, flattened->rows * sizeof(float));
-
-    Matrix* z1 = matrix_multiply(fc->w1, flattened);
-    matrix_add(z1, fc->b1);
-    apply_relu(z1);
-
-    Matrix* z2 = matrix_multiply(fc->w2, z1);
-    matrix_add(z2, fc->b2);
-    apply_softmax(z2);
-
-    int result = argmax(z2);
+    int result = model_argmax(output);
     printf("\n-------------------------\n");
-    printf(">> Result: [ %d ] <<\n", result);
-    printf(">> Acc: %.2f%%\n", z2->data[result] * 100);
+    printf(">> Predicted: [ %d ] <<\n", result);
+    printf(">> Confidence: %.2f%%\n", output->data[result] * 100);
+    printf("-------------------------\n");
 
-    matrix_free(input); matrix_free(conv_out); matrix_free(pool_out);
-    matrix_free(flattened); matrix_free(z1); matrix_free(z2);
+    matrix_free(input);
+    matrix_free(output);
     free(img_data);
-    conv_free(conv); pool_free(pool); network_free(fc);
+    model_free(model);
 }

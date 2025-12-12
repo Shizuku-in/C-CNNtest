@@ -121,24 +121,33 @@ Provide a model and any image file.
 
    实现线性整流函数：
 
-   $$\mathbf{A}^{[1]}_{k, i, j} = \text{ReLU}(\mathbf{Z}^{[1]}_{k, i, j}) = \max(0, \mathbf{Z}^{[1]}_{k, i, j})$$
+   $$
+   \mathbf{A}^{[1]}_{k, i, j} = \text{ReLU}(\mathbf{Z}^{[1]}_{k, i, j}) = \max(0, \mathbf{Z}^{[1]}_{k, i, j})
+   $$
 
 3. **Max Pooling (池化层)**
+   
    这部分对应 `layers.c/pool_forward`
 
    假设池化窗口大小为 $p \times p$，实现最大池化： 
 
-   $$\mathbf{P}^{[1]}_{k, i, j} = \max_{u, v \in \{0, \dots, p-1\}} \left( \mathbf{A}^{[1]}_{k, i \cdot p + u, j \cdot p + v} \right)$$
+   $$
+   \mathbf{P}^{[1]}_{k, i, j} = \max_{u, v \in \{0, \dots, p-1\}} \left( \mathbf{A}^{[1]}_{k, i \cdot p + u, j \cdot p + v} \right)
+   $$
 
    记录 Mask (最大值索引)：
 
-   $$\text{Mask}_{k, i, j} = \arg\max_{u, v} (\dots)$$
+   $$
+   \text{Mask}_{k, i, j} = \arg\max_{u, v} (\dots)
+   $$
 
 4. **Flatten (扁平化)**
    
    将多维张量拉伸为一维向量 $\mathbf{v}$，作为全连接层的输入：
 
-   $$\mathbf{v} = \text{vec}(\mathbf{P}^{[1]})$$
+   $$
+   \mathbf{v} = \text{vec}(\mathbf{P}^{[1]})
+   $$
 
 5. **Fully Connected Layer (全连接层)**
    
@@ -156,17 +165,23 @@ Provide a model and any image file.
    
    将输出 logits (原始输出值) 转换为概率分布 $\hat{\mathbf{y}}$：
 
-   $$\hat{y}_i = \frac{e^{z^{[3]}_i}}{\sum_{j=1}^{10} e^{z^{[3]}_j}}$$
+   $$
+   \hat{y}_i = \frac{e^{z^{[3]}_i}}{\sum_{j=1}^{10} e^{z^{[3]}_j}}
+   $$
 
 **2. Loss Function (损失函数)**
 
 使用 Cross-Entropy Loss (交叉熵损失)。假设真实标签为 $y$ ([One-hot 编码](https://zhuanlan.zhihu.com/p/634296763))，预测概率为 $\hat{y}$
 
-$$L = - \sum_{i=1}^{10} y_i \log(\hat{y}_i)$$
+$$
+L = - \sum_{i=1}^{10} y_i \log(\hat{y}_i)
+$$
 
 由于 $y$ 是 One-hot (只有正确类别 $t$ 的位置是 $1$，其余是 $0$)，所以简化为：
 
-$$L = - \log(\hat{y}_t)$$
+$$
+L = - \log(\hat{y}_t)
+$$
 
 **3. Backward Propagation (反向传播)**
 
@@ -176,7 +191,9 @@ $$L = - \log(\hat{y}_t)$$
    
    损失函数 $L$ 对 Softmax 输入 $\mathbf{z}^{[3]}$ 的偏导数是：
 
-   $$\delta^{[3]} = \frac{\partial L}{\partial \mathbf{z}^{[3]}} = \hat{\mathbf{y}} - \mathbf{y}$$
+   $$
+   \delta^{[3]} = \frac{\partial L}{\partial \mathbf{z}^{[3]}} = \hat{\mathbf{y}} - \mathbf{y}
+   $$
 
    即对应：`network.c` 中的 `output->data[i] - target->[i]` (预测概率 - 真实标签)
 
@@ -186,26 +203,33 @@ $$L = - \log(\hat{y}_t)$$
 
    计算 $\mathbf{W}^{[3]}$ 的梯度 (用于更新权重):
 
-   $$\frac{\partial L}{\partial \mathbf{W}^{[3]}} = \delta^{[3]} (\mathbf{a}^{[2]})^T$$
+   $$
+   \frac{\partial L}{\partial \mathbf{W}^{[3]}} = \delta^{[3]} (\mathbf{a}^{[2]})^T
+   $$
 
    计算传递给上一层的误差 $\delta^{[2]}$: 这里需要乘上 ReLU 的导数 $g'(z)$ (即：如果 $z>0$ 为 $1$，否则为 $0$)
 
-   $$\delta^{[2]} = (\mathbf{W}^{[3]})^T \delta^{[3]} \odot g'(\mathbf{z}^{[2]})$$
+   $$
+   \delta^{[2]} = (\mathbf{W}^{[3]})^T \delta^{[3]} \odot g'(\mathbf{z}^{[2]})
+   $$
 
    $\odot$ 表示 Hadamard Product (逐元素相乘)
 
 3. **Unflatten (从全连接层传回池化层)**
+   
    将一维的误差向量 $\delta^{[input]}$ 重新变形成 3D 张量形状，记为 $\mathbf{d}\mathbf{P}$
 
 4. **Upsampling (池化层的反向传播)**
    
    进行梯度的路由，梯度只流向最大值所在的位置，其余位置为 $0$：
 
-   $$\frac{\partial L}{\partial \mathbf{A}^{[1]}_{k, u, v}} = 
+   $$
+   \frac{\partial L}{\partial \mathbf{A}^{[1]}_{k, u, v}} = 
     \begin{cases} 
     \mathbf{d}\mathbf{P}_{k, i, j} & \text{if } (u,v) = \text{Mask}_{k, i, j} \\
     0 & \text{otherwise}
-    \end{cases}$$
+    \end{cases}
+    $$
 
 5. **卷积层的反向传播**
    
@@ -215,7 +239,9 @@ $$L = - \log(\hat{y}_t)$$
 
    **A. 计算卷积核梯度** $\frac{\partial L}{\partial \mathbf{K}}$: (Input $\mathbf{X}$ 和 Error $\delta^{[conv]}$ 的卷积)
 
-   $$\frac{\partial L}{\partial \mathbf{K}^{[k]}_{u,v,c}} = \sum_{i} \sum_{j} \mathbf{X}_{i+u, j+v, c} \cdot \delta^{[conv]}_{k, i, j}$$
+   $$
+   \frac{\partial L}{\partial \mathbf{K}^{[k]}_{u,v,c}} = \sum_{i} \sum_{j} \mathbf{X}_{i+u, j+v, c} \cdot \delta^{[conv]}_{k, i, j}
+   $$
 
    **B. 计算输入梯度 $\frac{\partial L}{\partial \mathbf{X}}$ (全卷积)**: 为了把误差传回输入图（如果你有更多卷积层），我们需要做 Transposed Convolution (转置卷积)，数学上，它是将卷积核旋转 $180$ 度后，与填充后的误差矩阵做卷积
 

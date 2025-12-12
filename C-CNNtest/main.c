@@ -174,7 +174,7 @@ void run_training_mode(int epochs) {
 void run_inference_mode(char* model_path, char* img_path) {
     printf("--- Infering ---\n");
     printf("Load model: %s\n", model_path);
-    printf("Load sample: % s\n", img_path);
+    printf("Load sample: %s\n", img_path);
 
     ConvLayer* conv; PoolLayer* pool; NeuralNetwork* fc;
     build_architecture(&conv, &pool, &fc);

@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="C-CNNtest/C-CNNtest.vcxproj" Id="f22417cc-2ce0-41b8-9003-7881fce3bcec" />
+</Solution>

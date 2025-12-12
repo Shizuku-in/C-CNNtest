@@ -53,3 +53,11 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# user define
+.vs/
+x64/
+Debug/
+Release/
+*.user
+*.suo

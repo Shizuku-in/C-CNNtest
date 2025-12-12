@@ -30,7 +30,7 @@ void run_inference_mode(char* model_path, char* img_path);
 int main() {
     srand((unsigned int)time(NULL));
     int choice;
-	printf("1: train\n2: infer\n");
+    printf("1: train\n2: infer\n");
 
     if (scanf("%d", &choice) != 1) {
         printf("invalid...\n");
@@ -122,13 +122,24 @@ void run_training_mode(int epochs) {
             Matrix* output_err = matrix_create(10, 1);
             for (int k = 0; k < 10; k++) output_err->data[k] = output->data[k] - target->data[k];
 
-            Matrix* dw2 = matrix_multiply(output_err, matrix_transpose(a1));
-            Matrix* hidden_err = matrix_multiply(matrix_transpose(fc->w2), output_err);
+            Matrix* a1_T = matrix_transpose(a1);
+            Matrix* dw2 = matrix_multiply(output_err, a1_T);
+            matrix_free(a1_T);
+
+            Matrix* w2_T = matrix_transpose(fc->w2);
+            Matrix* hidden_err = matrix_multiply(w2_T, output_err);
+            matrix_free(w2_T);
+
             apply_relu_derivative(z1);
             for (int k = 0; k < hidden_err->rows; k++) hidden_err->data[k] *= z1->data[k];
 
-            Matrix* dw1 = matrix_multiply(hidden_err, matrix_transpose(flattened));
-            Matrix* d_flattened = matrix_multiply(matrix_transpose(fc->w1), hidden_err);
+            Matrix* flattened_T = matrix_transpose(flattened);
+            Matrix* dw1 = matrix_multiply(hidden_err, flattened_T);
+            matrix_free(flattened_T);
+
+            Matrix* w1_T = matrix_transpose(fc->w1);
+            Matrix* d_flattened = matrix_multiply(w1_T, hidden_err);
+            matrix_free(w1_T);
 
             Matrix* d_pool_out = matrix_create(pool->input_depth, pool->output_w * pool->output_h);
             memcpy(d_pool_out->data, d_flattened->data, d_pool_out->rows * d_pool_out->cols * sizeof(float));

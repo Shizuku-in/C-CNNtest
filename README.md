@@ -1,5 +1,9 @@
 # C-CNNtest
 
+## Introduction
+
+A pure C CNN implementation for MNIST Handwriting Recognition.
+
 ## Implementation
 **1. Architecture**
 ```mermaid

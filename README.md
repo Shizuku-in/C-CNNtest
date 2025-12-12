@@ -221,7 +221,7 @@ $$
 \delta^{[2]} = (\mathbf{W}^{[3]})^T \delta^{[3]} \odot g'(\mathbf{z}^{[2]})
 $$
 
-   $\odot$ 表示 Hadamard Product (逐元素相乘)
+- $\odot$ 表示 Hadamard Product (逐元素相乘)
 
 3. **Unflatten (从全连接层传回池化层)**
 

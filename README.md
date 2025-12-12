@@ -7,6 +7,7 @@ A pure C CNN implementation for MNIST Handwriting Recognition.
 ## Implementation
 **1. Architecture**
 ```mermaid
+%%{init: {'theme': 'dark'}}%%
 mindmap
   root((C-CNNtest))
     Data Layer
@@ -41,7 +42,6 @@ mindmap
         Forward -> Loss -> Backward -> Update -> Save
       Inference Mode
         Load Model -> Load Image -> Preprocess -> Predict
-
 ```
 **2. Network Data Flow**
 ```mermaid

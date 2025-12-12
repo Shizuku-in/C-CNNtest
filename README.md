@@ -110,7 +110,9 @@ Provide a model and any image file.
    假设输入图像为 $\mathbf{X}$ (大小 $H \times W$)，卷积核为 $\mathbf{K}$ (大小 $f \times f$)，偏置为 $b$
    对于第 $k$ 个输出特征图的坐标 $(i, j)$，计算公式为：
 
-   $$\mathbf{Z}^{[1]}_{k, i, j} = \sum_{c=0}^{C_{in}-1} \sum_{u=0}^{f-1} \sum_{v=0}^{f-1} \mathbf{X}_{i+u, j+v, c} \cdot \mathbf{K}_{u, v, c}^{[k]} + b_k$$
+   $$
+   \mathbf{Z}^{[1]}_{k, i, j} = \sum_{c=0}^{C_{in}-1} \sum_{u=0}^{f-1} \sum_{v=0}^{f-1} \mathbf{X}_{i+u, j+v, c} \cdot \mathbf{K}_{u, v, c}^{[k]} + b_k
+   $$
 
    - $\mathbf{X}_{i+u, j+v, c}$: 输入图像在位置 $(i+u, j+v)$ 第 $c$ 个通道的像素值
    - $\mathbf{K}_{u, v, c}^{[k]}$: 第 $k$ 个卷积核的权重
@@ -131,9 +133,9 @@ Provide a model and any image file.
 
    假设池化窗口大小为 $p \times p$，实现最大池化： 
 
-   $$
-   \mathbf{P}^{[1]}_{k, i, j} = \max_{u, v \in \{0, \dots, p-1\}} \left( \mathbf{A}^{[1]}_{k, i \cdot p + u, j \cdot p + v} \right)
-   $$
+    $$
+    \mathbf{P}^{[1]}_{k, i, j} = \max_{u, v \in \{0, \dots, p-1\}} \left( \mathbf{A}^{[1]}_{k, i \cdot p + u, j \cdot p + v} \right)
+    $$
 
    记录 Mask (最大值索引)：
 
@@ -173,15 +175,11 @@ Provide a model and any image file.
 
 使用 Cross-Entropy Loss (交叉熵损失)。假设真实标签为 $y$ ([One-hot 编码](https://zhuanlan.zhihu.com/p/634296763))，预测概率为 $\hat{y}$
 
-$$
-L = - \sum_{i=1}^{10} y_i \log(\hat{y}_i)
-$$
+$$L = - \sum_{i=1}^{10} y_i \log(\hat{y}_i)$$
 
 由于 $y$ 是 One-hot (只有正确类别 $t$ 的位置是 $1$，其余是 $0$)，所以简化为：
 
-$$
-L = - \log(\hat{y}_t)
-$$
+$$L = - \log(\hat{y}_t)$$
 
 **3. Backward Propagation (反向传播)**
 
@@ -225,11 +223,11 @@ $$
 
    $$
    \frac{\partial L}{\partial \mathbf{A}^{[1]}_{k, u, v}} = 
-    \begin{cases} 
-    \mathbf{d}\mathbf{P}_{k, i, j} & \text{if } (u,v) = \text{Mask}_{k, i, j} \\
-    0 & \text{otherwise}
-    \end{cases}
-    $$
+   \begin{cases} 
+   \mathbf{d}\mathbf{P}_{k, i, j} & \text{if } (u,v) = \text{Mask}_{k, i, j} \\
+   0 & \text{otherwise}
+   \end{cases}
+   $$
 
 5. **卷积层的反向传播**
    
@@ -245,7 +243,9 @@ $$
 
    **B. 计算输入梯度 $\frac{\partial L}{\partial \mathbf{X}}$ (全卷积)**: 为了把误差传回输入图（如果你有更多卷积层），我们需要做 Transposed Convolution (转置卷积)，数学上，它是将卷积核旋转 $180$ 度后，与填充后的误差矩阵做卷积
 
-   $$\frac{\partial L}{\partial \mathbf{X}_{i,j,c}} = \sum_{k} \sum_{u} \sum_{v} \delta^{[conv]}_{k, i-u, j-v} \cdot \mathbf{K}^{[k]}_{u, v, c}$$
+   $$
+   \frac{\partial L}{\partial \mathbf{X}_{i,j,c}} = \sum_{k} \sum_{u} \sum_{v} \delta^{[conv]}_{k, i-u, j-v} \cdot \mathbf{K}^{[k]}_{u, v, c}
+   $$
 
 **3. SGD Optimizer (随机梯度下降参数更新)**
 
